@@ -34,6 +34,7 @@
 //ADXL345
 #define ADXL345 0x53
 #define PWR_CTL 0x2D
+#define DEVID_REG 0x00
 #define MEA_MODE 0x08
 #define DATAX0 0x32
 #define DATAX1 0x33
@@ -99,7 +100,6 @@ HAL_StatusTypeDef initADXL345(I2C_HandleTypeDef i2c_hdl, uint16_t address);
 int main(void) {
 	/* USER CODE BEGIN 1 */
 
-
 	/* USER CODE END 1 */
 
 	/* MCU Configuration--------------------------------------------------------*/
@@ -124,10 +124,10 @@ int main(void) {
 	MX_USB_OTG_FS_PCD_Init();
 	MX_I2C1_Init();
 	/* USER CODE BEGIN 2 */
-	printf("ADX345 example\n");
+	printf("ADX345 example version 1.0.0\r\n");
 
-	address = ((uint16_t) ADXL345 << 1);
-	initADXL345(hi2c1,address);
+	address = ((uint16_t) ADXL345<<1);
+	initADXL345(hi2c1, address);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -137,18 +137,11 @@ int main(void) {
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		ReadReg(hi2c1, address, (uint8_t) DATAX0, buf_rx, 1);
+		ReadReg(hi2c1, address, (uint8_t) DATAX0, buf_rx, 2);
 		int DATAX = (((int) buf_rx[1]) << 8) | (int) buf_rx[0];
-		float datax = DATAX/256.0;
-		printf("DEVID: %02x %02x %02x %f \r\n",DEVID, buf_rx[1], buf_rx[0], datax);
-		/*
-		 ret = HAL_I2C_Master_Transmit(&hi2c1, address, DATAX1, 1,1000);
-		 if (ret != HAL_OK) {
-		 printf("Ups no measurement mode enabled sent\n");
-		 }
-		 HAL_I2C_Master_Receive(&hi2c1, address, &buf_rx[1], 1, 1000);
-		 printf("%02x \r\n", buf_rx[1]);
-		 */
+		float datax = DATAX / 256.0;
+		printf("DEVID: %02x %02x %02x %f \r\n", DEVID, buf_rx[1], buf_rx[0],datax);
+
 
 	}
 
@@ -348,29 +341,32 @@ static void MX_GPIO_Init(void) {
 /* USER CODE BEGIN 4 */
 HAL_StatusTypeDef initADXL345(I2C_HandleTypeDef i2c_hdl, uint16_t address) {
 	buf_tx[0] = PWR_CTL; //register
-	buf_tx[1] = 0x08; //measurement mode
+	buf_tx[1] = MEA_MODE; //measurement mode
+	HAL_StatusTypeDef ret ;
 
-	HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&i2c_hdl, address,
-			(uint8_t*) buf_tx, 2, 1000);
+	//HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&i2c_hdl, address,(uint8_t*) buf_tx, 2, 1000);
+	ret = HAL_I2C_Mem_Write(&i2c_hdl, address, (uint8_t) PWR_CTL, 1,&buf_tx[1], 1, 1000);
 	if (ret != HAL_OK)
 		printf("ERROR PWRCTL\n");
 
-	ret = HAL_I2C_Master_Transmit(&i2c_hdl, address, 0x00, 1, 1000);
+	//ret = HAL_I2C_Master_Transmit(&i2c_hdl, address, 0x00, 1, 1000);
+	ret = HAL_I2C_Mem_Read(&i2c_hdl, address, (uint8_t) DEVID_REG, 1, &DEVID, 1,
+			1000);
 	if (ret != HAL_OK) {
 		printf("Ups no measurement mode enabled sent\n");
 	}
-	HAL_I2C_Master_Receive(&i2c_hdl, address, &DEVID, 1, 1000);
+	//HAL_I2C_Master_Receive(&i2c_hdl, address, &DEVID, 1, 1000);
+
 	printf("DEV ID: (E5) %02x \r\n", DEVID);
 	return ret;
 }
 HAL_StatusTypeDef ReadReg(I2C_HandleTypeDef i2c_hdl, uint16_t address,
 		uint8_t reg, uint8_t *pdata, uint16_t len) {
-	HAL_StatusTypeDef ret = HAL_I2C_Master_Transmit(&i2c_hdl, address, &reg, 1,
-			1000);
-	if (ret != HAL_OK) {
-		printf("Ups no measurement mode enabled sent\n");
-	}
-	HAL_I2C_Master_Receive(&i2c_hdl, address, pdata, len, 1000);
+
+	HAL_StatusTypeDef ret;
+	ret = HAL_I2C_Mem_Read(&i2c_hdl, address,reg, 1, pdata, len,1000);
+
+
 	return ret;
 }
 /* USER CODE END 4 */

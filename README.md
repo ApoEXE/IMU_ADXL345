@@ -1,0 +1,2 @@
+# IMU_ADXL345
+Simple sample for STM32F446ZE I2C
